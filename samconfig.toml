@@ -1,0 +1,14 @@
+version = 0.1
+[default]
+[default.deploy]
+[default.deploy.parameters]
+stack_name = "datamasque-blueprint-aurora"
+s3_bucket = "aws-sam-cli-managed-default-samclisourcebucket-6otsyl8eczos"
+s3_prefix = "datamasque-blueprint-v2"
+region = "ap-southeast-2"
+capabilities = "CAPABILITY_IAM"
+image_repositories = []
+
+parameter_overrides = "VpcId=\"vpc-0f6793bc08b042d0d\" SubnetIds=\"subnet-0f67fd4618593b21c\" DatamasqueBaseUrl=\"https://10.81.102.88/\" DatamasqueConnectionId=\"bbcb6a60-e837-4ca3-940f-439581e126eb\" DatamasqueRuleSetId=\"285951d3-5f54-4ab4-a135-ddb0ed42119a\" DatamasqueSecretArn=\"arn:aws:secretsmanager:ap-southeast-2:269378400967:secret:prod/blueprint/datamasque-3TxWwC\""
+confirm_changeset = true
+disable_rollback = true

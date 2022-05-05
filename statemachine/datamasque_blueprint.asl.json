@@ -1,0 +1,128 @@
+{
+  "Comment": "A blueprint to automate the creation of masked snapshots for a specific RDS DB instance.",
+  "StartAt": "Describe DB Cluster Snapshots",
+  "States": {
+    "Describe DB Cluster Snapshots": {
+      "Type": "Task",
+      "Resource": "${DescribeDBClusterSnapshotFunctionArn}",
+      "Next": "Describe DB Cluster"
+    },
+    "Describe DB Cluster": {
+      "Type": "Task",
+      "Resource": "${DescribeDBClusterFunctionArn}",
+      "Next": "Restore DB Cluster from Snapshot"
+    },
+    "Restore DB Cluster from Snapshot": {
+      "Type": "Task",
+      "Resource": "${RestoreDBClusterFromSnapshotFunctionArn}",
+      "Next": "Wait for Cluster"
+    },
+    "Wait for Cluster": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::sqs:sendMessage.waitForTaskToken",
+      "Parameters": {
+        "MessageBody": {
+          "input.$": "$",
+          "taskToken.$": "$$.Task.Token"
+        },
+        "QueueUrl": "${RestoreDBClusterFromSnapshotSQSQueue}"
+      },
+      "Next": "Create DB Instance"
+    },
+    "Create DB Instance": {
+      "Type": "Task",
+      "Resource": "${CreateDBInstanceFunctionArn}",
+      "Next": "Wait for DB Instance"
+    },
+    "Wait for DB Instance": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::sqs:sendMessage.waitForTaskToken",
+      "Parameters": {
+        "MessageBody": {
+          "input.$": "$",
+          "taskToken.$": "$$.Task.Token"
+        },
+        "QueueUrl": "${CreateDBInstanceSQSQueue}"
+      },
+      "Next": "Datamasque API run"
+    },
+    "Datamasque API run": {
+      "Type": "Task",
+      "Resource": "${DatamasqueRunFunctionArn}",
+      "Next": "SQS SendMessage",
+      "Catch": [
+        {
+          "ErrorEquals": [
+            "States.TaskFailed"
+          ],
+          "Next": "DeleteDBInstance",
+          "ResultPath": "$.TaskResult"
+        }
+      ]
+    },
+    "SQS SendMessage": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::sqs:sendMessage.waitForTaskToken",
+      "Parameters": {
+        "QueueUrl": "${DatamasqueRunSQSQueue}",
+        "MessageBody": {
+          "input.$": "$",
+          "taskToken.$": "$$.Task.Token"
+        }
+      },
+      "Next": "CreateDBClusterSnapshot",
+      "Catch": [
+        {
+          "ErrorEquals": [
+            "States.TaskFailed"
+          ],
+          "Next": "DeleteDBInstance",
+          "ResultPath": "$.TaskResult"
+        }
+      ]
+    },
+    "CreateDBClusterSnapshot": {
+      "Type": "Task",
+      "Parameters": {
+        "DbClusterIdentifier.$": "$.DBClusterIdentifier",
+        "DbClusterSnapshotIdentifier.$": "States.Format('{}-{}',$.DBClusterIdentifier, $.Timestamp)"
+      },
+      "Resource": "arn:aws:states:::aws-sdk:rds:createDBClusterSnapshot",
+      "Next": "Wait for Snapshot",
+      "Catch": [
+        {
+          "ErrorEquals": [
+            "States.TaskFailed"
+          ],
+          "Next": "DeleteDBInstance",
+          "ResultPath": "$.TaskResult"
+        }
+      ],
+      "ResultPath": null
+    },
+    "Wait for Snapshot": {
+      "Type": "Wait",
+      "Seconds": 300,
+      "Next": "DeleteDBInstance"
+    },
+    "DeleteDBInstance": {
+      "Type": "Task",
+      "Parameters": {
+        "DbInstanceIdentifier.$": "$.DBInstanceIdentifier",
+        "SkipFinalSnapshot": true
+      },
+      "Resource": "arn:aws:states:::aws-sdk:rds:deleteDBInstance",
+      "Next": "DeleteDBCluster"
+    },
+    "DeleteDBCluster": {
+      "Type": "Task",
+      "End": true,
+      "Parameters": {
+        "DbClusterIdentifier.$": "$.DbClusterIdentifier",
+        "SkipFinalSnapshot": true
+      },
+      "Resource": "arn:aws:states:::aws-sdk:rds:deleteDBCluster",
+      "InputPath": "$.DbInstance"
+    }
+  }
+}
