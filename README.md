@@ -91,14 +91,13 @@ parameter_overrides = "VpcId=\"vpc-xxxxxxxx\" SubnetIds=\"subnet-xxxxxxxxxxxxx\"
 
 ```
 
-###### Please ensure the following network connectivities are configured after deploying the CloudFormation Stack:
+###### Please ensure the following are configured after deploying the CloudFormation Stack:
 
 - The source RDS Aurora DB Cluster **must** allow inbound connections from the DataMasque EC2 instance. The configuration will
   be replicated when creating the staging RDS Aurora.
 - The DataMasque EC2 instance **must** allow inbound connections from the **DatamasqueRun** Lambda.
 - The DataMasque EC2 instance **must** allow inbound connections from the **WaitDatamasqueRun** Lambda.
-
-Please also ensure to allow stepfunctions to use the KMS key used on the source database to encrypt masked snapshots.
+- Grant permission for the stepfunctions to use the KMS key configured on the source database to encrypt masked snapshots.
 
 ## AWS Step Function execution
 
